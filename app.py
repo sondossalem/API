@@ -74,10 +74,12 @@ def predict():
         # التأكد من أن جميع الأعمدة المطلوبة موجودة في DataFrame
         missing_columns = [col for col in final_columns if col not in df.columns]
 
-        if missing_columns:
-            return jsonify({"error": f"Missing columns: {', '.join(missing_columns)}"}), 400
+        # إذا كانت هناك أعمدة مفقودة، قم بإضافتها مع تعيين قيمتها 0
+        for col in missing_columns:
+            df[col] = 0
 
-        df = df[final_columns]  # تأكد من ترتيب الأعمدة
+        # ترتيب الأعمدة لضمان التوافق مع final_columns
+        df = df[final_columns]
 
         # حساب الاحتمالية باستخدام النموذج
         prob = model.predict_proba(df)[0][1]
