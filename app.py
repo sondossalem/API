@@ -1,13 +1,13 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS  # ✅ تفعيل CORS
+from flask_cors import CORS
 import pickle
 import numpy as np
 import pandas as pd
 import zipfile
 import os
 
-app = Flask(__name__)  # تم تصحيح _name_ إلى __name__
-CORS(app)  # ✅ تفعيل CORS للسماح للواجهة تتواصل
+app = Flask(__name__)
+CORS(app)
 
 model_filename = "xgb_model.pkl"
 
@@ -52,16 +52,13 @@ def predict():
         raw_data = request.get_json()
         df = pd.DataFrame([raw_data])
 
-        # تحويل بعض الحقول إلى التنسيقات المطلوبة
+        # معالجة البيانات
         df['term'] = df['term'].str.extract(r'(\d+)').astype(int)
         df['home_ownership'] = df['home_ownership'].replace(['NONE', 'ANY'], 'OTHER')
-
         df['credit_age'] = 2013 - pd.to_datetime(df['earliest_cr_line'], errors='coerce').dt.year
         df['issue_d'] = pd.to_datetime(df['issue_d'], format='%b-%Y')
         df['loan_issue_year'] = df['issue_d'].dt.year
         df['loan_issue_month'] = df['issue_d'].dt.month
-
-        # استخراج الرمز البريدي من العنوان
         df['zip_code'] = df['address'].str.extract(r'(\d{5})$')
 
         # حذف الأعمدة غير الضرورية
@@ -75,21 +72,25 @@ def predict():
         df = pd.get_dummies(df, columns=categorical_cols, drop_first=True)
 
         # التأكد من أن جميع الأعمدة المطلوبة موجودة في DataFrame
-        for col in final_columns:
-            if col not in df:
-                df[col] = 0
-        df = df[final_columns]
+        missing_columns = [col for col in final_columns if col not in df.columns]
+
+        if missing_columns:
+            return jsonify({"error": f"Missing columns: {', '.join(missing_columns)}"}), 400
+
+        df = df[final_columns]  # تأكد من ترتيب الأعمدة
 
         # حساب الاحتمالية باستخدام النموذج
-        prob = model.predict_proba(df)[0][1]  # أخذ الاحتمالية للفئة 0 (التي تعني "سيدفع")
+        prob = model.predict_proba(df)[0][1]
 
-        # تعديل منطق التنبؤ بناءً على الاحتمالية
+        # منطق التنبؤ
         prediction = int(prob >= 0.55)  
-
-        # تحديد مستوى المخاطرة بناءً على الاحتمالية
-        if prob < 0.4:
+        
+        # تحديد مستوى المخاطرة
+        LOW_RISK_THRESHOLD = 0.4
+        HIGH_RISK_THRESHOLD = 0.6
+        if prob < LOW_RISK_THRESHOLD:
             risk_level = "Low Risk"
-        elif prob < 0.6:
+        elif prob < HIGH_RISK_THRESHOLD:
             risk_level = "Moderate Risk"
         else:
             risk_level = "High Risk"
