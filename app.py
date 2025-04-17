@@ -1,13 +1,13 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask_cors import CORS  # ✅ تفعيل CORS
 import pickle
 import numpy as np
 import pandas as pd
 import zipfile
 import os
 
-app = Flask(__name__)
-CORS(app)
+app = Flask(_name)  # تم تصحيح _name إلى _name_
+CORS(app)  # ✅ تفعيل CORS للسماح للواجهة تتواصل
 
 model_filename = "xgb_model.pkl"
 
@@ -52,13 +52,16 @@ def predict():
         raw_data = request.get_json()
         df = pd.DataFrame([raw_data])
 
-        # معالجة البيانات
+        # تحويل بعض الحقول إلى التنسيقات المطلوبة
         df['term'] = df['term'].str.extract(r'(\d+)').astype(int)
         df['home_ownership'] = df['home_ownership'].replace(['NONE', 'ANY'], 'OTHER')
+
         df['credit_age'] = 2013 - pd.to_datetime(df['earliest_cr_line'], errors='coerce').dt.year
         df['issue_d'] = pd.to_datetime(df['issue_d'], format='%b-%Y')
         df['loan_issue_year'] = df['issue_d'].dt.year
         df['loan_issue_month'] = df['issue_d'].dt.month
+
+        # استخراج الرمز البريدي من العنوان
         df['zip_code'] = df['address'].str.extract(r'(\d{5})$')
 
         # حذف الأعمدة غير الضرورية
@@ -72,27 +75,21 @@ def predict():
         df = pd.get_dummies(df, columns=categorical_cols, drop_first=True)
 
         # التأكد من أن جميع الأعمدة المطلوبة موجودة في DataFrame
-        missing_columns = [col for col in final_columns if col not in df.columns]
-
-        # إذا كانت هناك أعمدة مفقودة، قم بإضافتها مع تعيين قيمتها 0
-        for col in missing_columns:
-            df[col] = 0
-
-        # ترتيب الأعمدة لضمان التوافق مع final_columns
+        for col in final_columns:
+            if col not in df:
+                df[col] = 0
         df = df[final_columns]
 
         # حساب الاحتمالية باستخدام النموذج
-        prob = model.predict_proba(df)[0][1]
+        prob = model.predict_proba(df)[0][1]  # أخذ الاحتمالية للفئة 0 (التي تعني "سيدفع")
 
-        # منطق التنبؤ
+        # تعديل منطق التنبؤ بناءً على الاحتمالية
         prediction = int(prob >= 0.55)  
-        
-        # تحديد مستوى المخاطرة
-        LOW_RISK_THRESHOLD = 0.4
-        HIGH_RISK_THRESHOLD = 0.6
-        if prob < LOW_RISK_THRESHOLD:
+
+        # تحديد مستوى المخاطرة بناءً على الاحتمالية
+        if prob < 0.4:
             risk_level = "Low Risk"
-        elif prob < HIGH_RISK_THRESHOLD:
+        elif prob < 0.6:
             risk_level = "Moderate Risk"
         else:
             risk_level = "High Risk"
@@ -106,6 +103,6 @@ def predict():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
