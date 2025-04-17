@@ -81,13 +81,13 @@ def predict():
         df = df[final_columns]
 
         # حساب الاحتمالية باستخدام النموذج
-        prob = model.predict_proba(df)[0][0]  # أخذ الاحتمالية للفئة 0 (التي تعني "سيدفع")
+        prob = model.predict_proba(df)[0][1]  # أخذ الاحتمالية للفئة 0 (التي تعني "سيدفع")
 
         # تعديل منطق التنبؤ بناءً على الاحتمالية
-        prediction = int(prob >= 0.45)  # إذا كانت الاحتمالية أكثر من 0.3 سيتم اعتبارها "موافقة"، أما إذا كانت أقل، فهي "رفض"
+        prediction = int(prob >= 0.55)  
 
         # تحديد مستوى المخاطرة بناءً على الاحتمالية
-        if prob < 0.3:
+        if prob < 0.4:
             risk_level = "Low Risk"
         elif prob < 0.6:
             risk_level = "Moderate Risk"
