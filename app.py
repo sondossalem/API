@@ -6,7 +6,7 @@ import pandas as pd
 import zipfile
 import os
 
-app = Flask(_name)  # تم تصحيح _name إلى _name_
+app = Flask(__name__)  # تم تصحيح _name_ إلى __name__
 CORS(app)  # ✅ تفعيل CORS للسماح للواجهة تتواصل
 
 model_filename = "xgb_model.pkl"
@@ -52,16 +52,13 @@ def predict():
         raw_data = request.get_json()
         df = pd.DataFrame([raw_data])
 
-        # تحويل بعض الحقول إلى التنسيقات المطلوبة
+        # معالجة البيانات
         df['term'] = df['term'].str.extract(r'(\d+)').astype(int)
         df['home_ownership'] = df['home_ownership'].replace(['NONE', 'ANY'], 'OTHER')
-
         df['credit_age'] = 2013 - pd.to_datetime(df['earliest_cr_line'], errors='coerce').dt.year
         df['issue_d'] = pd.to_datetime(df['issue_d'], format='%b-%Y')
         df['loan_issue_year'] = df['issue_d'].dt.year
         df['loan_issue_month'] = df['issue_d'].dt.month
-
-        # استخراج الرمز البريدي من العنوان
         df['zip_code'] = df['address'].str.extract(r'(\d{5})$')
 
         # حذف الأعمدة غير الضرورية
@@ -103,6 +100,6 @@ def predict():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
